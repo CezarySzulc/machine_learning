@@ -8,9 +8,10 @@ from sklearn.cross_validation import train_test_split
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import RobustScaler, StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.grid_search import GridSearchCV
-from numpy import corrcoef, arange
+from numpy import corrcoef
 from pandas import DataFrame
 
 
@@ -19,6 +20,7 @@ class predict_clf():
         """ split data for training and test values """
         data = DataFrame(data)
         target = DataFrame(target)
+        self.multi_class = True if len(target[0].unique()) > 2 else False
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             data, target, train_size=0.8, random_state=43
         )
@@ -29,14 +31,22 @@ class predict_clf():
         X = DataFrame(X)
         X.boxplot()
         
-    def pipeline_k_neighbours(self):
+    def pipeline_k_neighbours(self, n_neighbors=5):
         pca = PCA()
-        clf = KNeighborsClassifier(5)
+        clf = KNeighborsClassifier(n_neighbors)
         # pipeline with pca and kneighbours
         pipeline = Pipeline(steps=[('pca', pca), ('clf', clf)])
-        #best_k_param = {'clf__n': arange(0, 2, 0.1)}
-        #search_func = GridSearchCV(pipeline, best_k_param)
-        pipeline.fit(self.X_train, self.y_train)
+        pipeline.fit(self.X_train, self.y_train.values.ravel())
+        return pipeline
+        
+    def pipeline_logistic_reg(self):
+        if self.multi_class:
+            clf = LogisticRegression(multi_class='ovr')
+        else:
+            clf = LogisticRegression()
+        scaler = StandardScaler()
+        pipeline = Pipeline(steps=[('scaler', scaler), ('clf', clf)])
+        pipeline.fit(self.X_train, self.y_train.values.ravel())
         return pipeline
         
     def test_classification(self, clf):
@@ -49,4 +59,6 @@ iris_pr = predict_clf(data.data, data.target)
 #iris_pr.show_raport(iris_pr.X_train)
 #iris_pr.decrease_datasets()
 clf = iris_pr.pipeline_k_neighbours()
+iris_pr.test_classification(clf)
+clf = iris_pr.pipeline_logistic_reg()
 iris_pr.test_classification(clf)
